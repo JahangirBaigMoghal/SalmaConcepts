@@ -25,6 +25,7 @@ document.addEventListener('DOMContentLoaded', () => {
   initContact();
   initScrollAnimations();
   initParticles();
+  initLightbox();
 });
 
 // ═══════════════════════════════════════════
@@ -96,7 +97,8 @@ function initGallery() {
 
 function renderCategoryTabs() {
   const tabsContainer = document.getElementById('category-tabs');
-  const categories = Store.getCategories();
+  // Only show visible categories on the customer site
+  const categories = Store.getCategories().filter(c => !c.hidden);
 
   let html = `<button class="category-tab active" data-category="all">All</button>`;
   categories.forEach(cat => {
@@ -117,8 +119,12 @@ function renderCategoryTabs() {
 
 function renderProducts() {
   const grid = document.getElementById('product-grid');
-  const products = Store.getProductsByCategory(activeCategory);
-  const categories = Store.getCategories();
+  const allCategories = Store.getCategories();
+  // Filter: hide products that are hidden OR belong to a hidden category
+  const hiddenCatIds = allCategories.filter(c => c.hidden).map(c => c.id);
+  const products = Store.getProductsByCategory(activeCategory)
+    .filter(p => !p.hidden && !hiddenCatIds.includes(p.category));
+  const categories = allCategories.filter(c => !c.hidden);
 
   if (products.length === 0) {
     grid.innerHTML = `
@@ -139,7 +145,7 @@ function renderProducts() {
 
     return `
       <div class="product-card reveal ${staggerClass}" data-id="${product.id}">
-        <div class="product-card-image">
+        <div class="product-card-image" data-img="${product.image}" data-name="${product.name}">
           <img src="${product.image}" alt="${product.name}" loading="lazy" />
         </div>
         <div class="product-card-body">
@@ -153,6 +159,13 @@ function renderProducts() {
         </div>
       </div>`;
   }).join('');
+
+  // Attach lightbox click handlers to product images
+  grid.querySelectorAll('.product-card-image').forEach(imgWrapper => {
+    imgWrapper.addEventListener('click', () => {
+      openLightbox(imgWrapper.dataset.img, imgWrapper.dataset.name);
+    });
+  });
 
   // Re-trigger scroll animations for new items
   setTimeout(() => initScrollAnimations(), 50);
@@ -220,4 +233,45 @@ function initParticles() {
     particle.style.animationDuration = `${3 + Math.random() * 3}s`;
     container.appendChild(particle);
   }
+}
+
+// ═══════════════════════════════════════════
+// IMAGE LIGHTBOX
+// ═══════════════════════════════════════════
+function initLightbox() {
+  const overlay = document.getElementById('lightbox-overlay');
+  const closeBtn = document.getElementById('lightbox-close');
+  if (!overlay || !closeBtn) return;
+
+  // Close on X button
+  closeBtn.addEventListener('click', closeLightbox);
+
+  // Close on overlay background click (not the image itself)
+  overlay.addEventListener('click', (e) => {
+    if (e.target === overlay) closeLightbox();
+  });
+
+  // Close on Escape key
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && overlay.classList.contains('active')) {
+      closeLightbox();
+    }
+  });
+}
+
+function openLightbox(imageSrc, caption) {
+  const overlay = document.getElementById('lightbox-overlay');
+  const img = document.getElementById('lightbox-img');
+  const captionEl = document.getElementById('lightbox-caption');
+
+  img.src = imageSrc;
+  captionEl.textContent = caption || '';
+  overlay.classList.add('active');
+  document.body.style.overflow = 'hidden';
+}
+
+function closeLightbox() {
+  const overlay = document.getElementById('lightbox-overlay');
+  overlay.classList.remove('active');
+  document.body.style.overflow = '';
 }

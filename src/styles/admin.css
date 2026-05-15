@@ -42,6 +42,10 @@
 .btn-edit:hover { background:var(--accent-gold); color:var(--bg-primary); }
 .btn-delete { background:rgba(255,68,68,0.1); color:#ff4444; border:1px solid rgba(255,68,68,0.2); }
 .btn-delete:hover { background:#ff4444; color:white; }
+.btn-hide { background:rgba(255,152,0,0.1); color:#ff9800; border:1px solid rgba(255,152,0,0.2); }
+.btn-hide:hover { background:#ff9800; color:var(--bg-primary); }
+.btn-show { background:rgba(37,211,102,0.1); color:#25d366; border:1px solid rgba(37,211,102,0.2); }
+.btn-show:hover { background:#25d366; color:var(--bg-primary); }
 /* Modal */
 .modal-overlay { display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.8); backdrop-filter:blur(10px); z-index:var(--z-modal); align-items:center; justify-content:center; padding:var(--space-xl); }
 .modal-overlay.active { display:flex; }

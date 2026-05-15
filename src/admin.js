@@ -207,26 +207,44 @@ function renderProductsTable() {
   const categories = Store.getCategories();
 
   if (products.length === 0) {
-    tbody.innerHTML = `<tr><td colspan="5" style="text-align:center; color:var(--text-muted); padding:2rem;">No products yet. Click "Add Product" to get started.</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="6" style="text-align:center; color:var(--text-muted); padding:2rem;">No products yet. Click "Add Product" to get started.</td></tr>`;
     return;
   }
 
   tbody.innerHTML = products.map(p => {
     const cat = categories.find(c => c.id === p.category);
+    const isHidden = p.hidden;
+    const rowStyle = isHidden ? 'opacity: 0.45;' : '';
+    const hiddenBadge = isHidden ? ' <span style="color:#ff9800; font-size:0.65rem; text-transform:uppercase; letter-spacing:0.08em; font-weight:600;">(Hidden)</span>' : '';
+    const toggleLabel = isHidden ? 'Show' : 'Hide';
+    const toggleClass = isHidden ? 'btn-show' : 'btn-hide';
     return `
-      <tr>
+      <tr style="${rowStyle}">
         <td><img src="${p.image}" alt="${p.name}" class="thumb" /></td>
-        <td>${p.name}</td>
+        <td>${p.name}${hiddenBadge}</td>
         <td>${cat ? cat.name : p.category}</td>
-        <td>£${p.price}</td>
+        <td>\u00a3${p.price}</td>
         <td>
           <div class="actions">
+            <button class="btn-sm ${toggleClass}" data-id="${p.id}" data-action="toggle-visibility">${toggleLabel}</button>
             <button class="btn-sm btn-edit" data-id="${p.id}">Edit</button>
             <button class="btn-sm btn-delete" data-id="${p.id}" data-name="${p.name}">Delete</button>
           </div>
         </td>
       </tr>`;
   }).join('');
+
+  // Visibility toggle buttons
+  tbody.querySelectorAll('[data-action="toggle-visibility"]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const product = Store.getProducts().find(p => p.id === btn.dataset.id);
+      if (product) {
+        Store.updateProduct(btn.dataset.id, { hidden: !product.hidden });
+        renderProductsTable();
+        showToast(product.hidden ? 'Product is now visible.' : 'Product hidden from catalogue.', 'success');
+      }
+    });
+  });
 
   // Edit buttons
   tbody.querySelectorAll('.btn-edit').forEach(btn => {
@@ -306,18 +324,36 @@ function renderCategoriesGrid() {
 
   grid.innerHTML = categories.map(cat => {
     const count = products.filter(p => p.category === cat.id).length;
+    const isHidden = cat.hidden;
+    const cardStyle = isHidden ? 'opacity: 0.45;' : '';
+    const hiddenBadge = isHidden ? ' <span style="color:#ff9800; font-size:0.6rem; text-transform:uppercase; letter-spacing:0.08em;">(Hidden)</span>' : '';
+    const toggleLabel = isHidden ? 'Show' : 'Hide';
+    const toggleClass = isHidden ? 'btn-show' : 'btn-hide';
     return `
-      <div class="category-card">
+      <div class="category-card" style="${cardStyle}">
         <div class="category-card-info">
-          <h4>${cat.name}</h4>
+          <h4>${cat.name}${hiddenBadge}</h4>
           <span>${count} product${count !== 1 ? 's' : ''}</span>
         </div>
         <div class="actions">
+          <button class="btn-sm ${toggleClass}" data-id="${cat.id}" data-action="toggle-cat-visibility">${toggleLabel}</button>
           <button class="btn-sm btn-edit" data-id="${cat.id}">Edit</button>
           <button class="btn-sm btn-delete" data-id="${cat.id}" data-name="${cat.name}">Delete</button>
         </div>
       </div>`;
   }).join('');
+
+  // Category visibility toggles
+  grid.querySelectorAll('[data-action="toggle-cat-visibility"]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const cat = Store.getCategories().find(c => c.id === btn.dataset.id);
+      if (cat) {
+        Store.updateCategory(btn.dataset.id, { hidden: !cat.hidden });
+        renderCategoriesGrid();
+        showToast(cat.hidden ? 'Category is now visible.' : 'Category hidden from catalogue.', 'success');
+      }
+    });
+  });
 
   grid.querySelectorAll('.btn-edit').forEach(btn => {
     btn.addEventListener('click', () => {
