@@ -224,6 +224,17 @@ p {
   transform: translateY(-2px);
 }
 
+.btn-whatsapp svg {
+  width: 18px;
+  height: 18px;
+  min-width: 18px;
+  flex-shrink: 0;
+}
+
+.btn svg {
+  flex-shrink: 0;
+}
+
 .btn-lg {
   padding: var(--space-lg) var(--space-3xl);
   font-size: var(--text-base);
