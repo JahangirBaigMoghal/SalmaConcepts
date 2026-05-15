@@ -3,10 +3,24 @@
  */
 const PHONE = '447305143677';
 
-export function getWhatsAppLink(productName, price) {
-  const message = productName
+export function getWhatsAppLink(productName, price, imageUrl) {
+  let message = productName
     ? `Hi! I'm interested in ordering "${productName}" (£${price}) from Salma Concepts. Could you please share availability and delivery details?`
     : `Hi! I'd like to place an order from Salma Concepts. Could you please help me?`;
+
+  // Append product image URL so the recipient can see the product
+  if (imageUrl) {
+    // Build full public URL for relative paths (e.g. /images/product-bangles.png)
+    const fullImageUrl = imageUrl.startsWith('http') || imageUrl.startsWith('data:')
+      ? imageUrl
+      : `${window.location.origin}${imageUrl}`;
+
+    // Only include if it's a real URL (not a data: URI — those are too long for WhatsApp)
+    if (!fullImageUrl.startsWith('data:')) {
+      message += `\n\nProduct: ${fullImageUrl}`;
+    }
+  }
+
   return `https://wa.me/${PHONE}?text=${encodeURIComponent(message)}`;
 }
 

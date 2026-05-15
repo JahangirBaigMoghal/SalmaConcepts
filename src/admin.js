@@ -10,7 +10,17 @@ import { seedData } from './data/seed.js';
 
 seedData();
 
-const ADMIN_PASSWORD = 'SalmaConcepts2026';
+// SHA-256 hash of the admin password (never store plaintext in source)
+const ADMIN_PASSWORD_HASH = '95cf7f379ff383746438c10273c01ab728bfa7ba3e98026ebcaaacc2caf8aa45';
+
+// Hash a string using Web Crypto API (SHA-256)
+async function hashPassword(password) {
+  const encoder = new TextEncoder();
+  const data = encoder.encode(password);
+  const hashBuffer = await crypto.subtle.digest('SHA-256', data);
+  const hashArray = Array.from(new Uint8Array(hashBuffer));
+  return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+}
 
 document.addEventListener('DOMContentLoaded', () => {
   initAuth();
@@ -37,10 +47,11 @@ function initAuth() {
     loadAllData();
   }
 
-  loginForm.addEventListener('submit', (e) => {
+  loginForm.addEventListener('submit', async (e) => {
     e.preventDefault();
     const pw = document.getElementById('login-password').value;
-    if (pw === ADMIN_PASSWORD) {
+    const pwHash = await hashPassword(pw);
+    if (pwHash === ADMIN_PASSWORD_HASH) {
       sessionStorage.setItem('sc_admin_auth', 'true');
       loginScreen.style.display = 'none';
       dashboard.style.display = 'block';

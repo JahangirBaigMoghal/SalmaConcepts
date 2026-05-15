@@ -134,7 +134,7 @@ function renderProducts() {
   grid.innerHTML = products.map((product, index) => {
     const cat = categories.find(c => c.id === product.category);
     const catName = cat ? cat.name : product.category;
-    const waLink = getWhatsAppLink(product.name, product.price);
+    const waLink = getWhatsAppLink(product.name, product.price, product.image);
     const staggerClass = `stagger-${(index % 9) + 1}`;
 
     return `
