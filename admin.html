@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Admin Panel — Salma Concepts</title>
+  <meta name="robots" content="noindex, nofollow" />
+  <link rel="icon" type="image/png" href="/images/logo.png" />
+</head>
+<body>
+
+  <!-- ═══════ LOGIN SCREEN ═══════ -->
+  <div class="admin-login" id="admin-login">
+    <div class="admin-login-card">
+      <img src="/images/logo.png" alt="Salma Concepts" class="nav-logo" />
+      <h2>Admin Panel</h2>
+      <p class="subtitle">Enter your password to manage the catalogue</p>
+      <form id="login-form">
+        <div class="form-group">
+          <label for="login-password">Password</label>
+          <input type="password" id="login-password" placeholder="Enter admin password" autocomplete="current-password" />
+        </div>
+        <button type="submit" class="btn btn-gold">Sign In</button>
+        <p class="login-error" id="login-error">Incorrect password. Please try again.</p>
+      </form>
+      <br>
+      <a href="/" style="color:var(--text-muted); font-size:var(--text-sm);">← Back to Catalogue</a>
+    </div>
+  </div>
+
+  <!-- ═══════ DASHBOARD ═══════ -->
+  <div class="admin-dashboard" id="admin-dashboard">
+    <!-- Top Bar -->
+    <div class="admin-topbar">
+      <div class="admin-topbar-brand">
+        <img src="/images/logo.png" alt="Salma Concepts" />
+        <span>Admin Panel</span>
+      </div>
+      <div class="admin-topbar-actions">
+        <a href="/" class="btn btn-outline-gold" style="font-size:0.75rem; padding:0.4rem 1rem;">View Site</a>
+        <button class="btn btn-outline-gold" style="font-size:0.75rem; padding:0.4rem 1rem;" id="btn-export">Export</button>
+        <label class="btn btn-outline-gold" style="font-size:0.75rem; padding:0.4rem 1rem; cursor:pointer;">
+          Import
+          <input type="file" accept=".json" id="btn-import" style="display:none;" />
+        </label>
+        <button class="btn btn-outline-gold" style="font-size:0.75rem; padding:0.4rem 1rem;" id="btn-logout">Logout</button>
+      </div>
+    </div>
+
+    <div class="admin-body">
+      <!-- Tabs -->
+      <div class="admin-tabs" id="admin-tabs">
+        <button class="admin-tab active" data-tab="products">Products</button>
+        <button class="admin-tab" data-tab="categories">Categories</button>
+        <button class="admin-tab" data-tab="content">Content</button>
+      </div>
+
+      <!-- ── PRODUCTS TAB ── -->
+      <div class="admin-tab-content active" id="tab-products">
+        <div class="admin-section-header">
+          <h3>Products</h3>
+          <button class="btn btn-gold" id="btn-add-product">+ Add Product</button>
+        </div>
+        <div class="admin-table-wrapper">
+          <table class="admin-table" id="products-table">
+            <thead>
+              <tr>
+                <th>Image</th>
+                <th>Name</th>
+                <th>Category</th>
+                <th>Price</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody id="products-tbody"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- ── CATEGORIES TAB ── -->
+      <div class="admin-tab-content" id="tab-categories">
+        <div class="admin-section-header">
+          <h3>Categories</h3>
+          <button class="btn btn-gold" id="btn-add-category">+ Add Category</button>
+        </div>
+        <div class="category-cards" id="categories-grid"></div>
+      </div>
+
+      <!-- ── CONTENT TAB ── -->
+      <div class="admin-tab-content" id="tab-content">
+        <div class="admin-section-header">
+          <h3>Website Content</h3>
+        </div>
+        <!-- Hero -->
+        <div style="background:rgba(255,215,0,0.03); border:1px solid rgba(255,215,0,0.1); border-radius:12px; padding:2rem; margin-bottom:2rem;">
+          <h4 style="color:var(--accent-gold); margin-bottom:1rem; font-family:var(--font-heading);">Hero Section</h4>
+          <div class="form-group">
+            <label for="hero-tagline-input">Tagline</label>
+            <input type="text" id="hero-tagline-input" />
+          </div>
+          <div class="form-group">
+            <label for="hero-subtitle-input">Subtitle</label>
+            <input type="text" id="hero-subtitle-input" />
+          </div>
+          <button class="btn btn-gold" id="btn-save-hero">Save Hero Content</button>
+        </div>
+        <!-- About -->
+        <div style="background:rgba(255,215,0,0.03); border:1px solid rgba(255,215,0,0.1); border-radius:12px; padding:2rem;">
+          <h4 style="color:var(--accent-gold); margin-bottom:1rem; font-family:var(--font-heading);">About Section</h4>
+          <div class="form-group">
+            <label for="about-title-input">Title</label>
+            <input type="text" id="about-title-input" />
+          </div>
+          <div class="form-group">
+            <label for="about-text-input">Content (use blank lines for paragraphs)</label>
+            <textarea id="about-text-input" rows="8"></textarea>
+          </div>
+          <button class="btn btn-gold" id="btn-save-about">Save About Content</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════ PRODUCT MODAL ═══════ -->
+  <div class="modal-overlay" id="product-modal">
+    <div class="modal">
+      <div class="modal-header">
+        <h3 id="product-modal-title">Add Product</h3>
+        <button class="modal-close" id="product-modal-close">&times;</button>
+      </div>
+      <div class="modal-body">
+        <form id="product-form">
+          <input type="hidden" id="product-edit-id" />
+          <div class="form-group">
+            <label for="product-name">Product Name</label>
+            <input type="text" id="product-name" placeholder="e.g. Royal Gold Bangle Set" required />
+          </div>
+          <div class="form-group">
+            <label for="product-category">Category</label>
+            <select id="product-category" required></select>
+          </div>
+          <div class="form-group">
+            <label for="product-price">Price (£)</label>
+            <input type="number" id="product-price" step="0.01" min="0" placeholder="29.99" required />
+          </div>
+          <div class="form-group">
+            <label for="product-image">Product Image</label>
+            <input type="file" id="product-image" accept="image/*" style="color:var(--text-muted);" />
+            <img class="image-preview" id="product-image-preview" alt="Preview" />
+          </div>
+        </form>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-outline-gold" id="product-modal-cancel">Cancel</button>
+        <button class="btn btn-gold" id="product-modal-save">Save Product</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════ CATEGORY MODAL ═══════ -->
+  <div class="modal-overlay" id="category-modal">
+    <div class="modal">
+      <div class="modal-header">
+        <h3 id="category-modal-title">Add Category</h3>
+        <button class="modal-close" id="category-modal-close">&times;</button>
+      </div>
+      <div class="modal-body">
+        <form id="category-form">
+          <input type="hidden" id="category-edit-id" />
+          <div class="form-group">
+            <label for="category-name">Category Name</label>
+            <input type="text" id="category-name" placeholder="e.g. Anklets" required />
+          </div>
+        </form>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-outline-gold" id="category-modal-cancel">Cancel</button>
+        <button class="btn btn-gold" id="category-modal-save">Save Category</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════ DELETE CONFIRM MODAL ═══════ -->
+  <div class="modal-overlay" id="delete-modal">
+    <div class="modal" style="max-width:400px; text-align:center;">
+      <div class="modal-body" style="padding:2rem;">
+        <h3 style="margin-bottom:1rem;">Confirm Delete</h3>
+        <p id="delete-message" style="color:var(--text-muted);">Are you sure?</p>
+      </div>
+      <div class="modal-footer" style="justify-content:center;">
+        <button class="btn btn-outline-gold" id="delete-cancel">Cancel</button>
+        <button class="btn btn-delete btn-sm" style="padding:0.75rem 1.5rem; font-size:0.875rem;" id="delete-confirm">Delete</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast -->
+  <div class="toast" id="toast"></div>
+
+  <script type="module" src="/src/admin.js"></script>
+</body>
+</html>
