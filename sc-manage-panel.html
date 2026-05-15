@@ -17,8 +17,12 @@
       <p class="subtitle">Enter your password to manage the catalogue</p>
       <form id="login-form">
         <div class="form-group">
+          <label for="login-email">Email</label>
+          <input type="email" id="login-email" placeholder="Enter admin email" autocomplete="username" required />
+        </div>
+        <div class="form-group">
           <label for="login-password">Password</label>
-          <input type="password" id="login-password" placeholder="Enter admin password" autocomplete="current-password" />
+          <input type="password" id="login-password" placeholder="Enter admin password" autocomplete="current-password" required />
         </div>
         <button type="submit" class="btn btn-gold">Sign In</button>
         <p class="login-error" id="login-error">Incorrect password. Please try again.</p>

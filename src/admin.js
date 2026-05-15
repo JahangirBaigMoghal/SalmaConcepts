@@ -7,18 +7,8 @@ import './styles/admin.css';
 
 import { Store } from './data/store.js';
 import { seedData } from './data/seed.js';
-
-// SHA-256 hash of the admin password (never store plaintext in source)
-const ADMIN_PASSWORD_HASH = '95cf7f379ff383746438c10273c01ab728bfa7ba3e98026ebcaaacc2caf8aa45';
-
-// Hash a string using Web Crypto API (SHA-256)
-async function hashPassword(password) {
-  const encoder = new TextEncoder();
-  const data = encoder.encode(password);
-  const hashBuffer = await crypto.subtle.digest('SHA-256', data);
-  const hashArray = Array.from(new Uint8Array(hashBuffer));
-  return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
-}
+import { auth } from './data/firebase.js';
+import { signInWithEmailAndPassword, onAuthStateChanged, signOut } from 'firebase/auth';
 
 // ── Boot ──
 (async () => {
@@ -48,31 +38,41 @@ function initAuth() {
   const loginForm = document.getElementById('login-form');
   const loginError = document.getElementById('login-error');
 
-  // Check session
-  if (sessionStorage.getItem('sc_admin_auth') === 'true') {
-    loginScreen.style.display = 'none';
-    dashboard.style.display = 'block';
-    loadAllData();
-  }
-
-  loginForm.addEventListener('submit', async (e) => {
-    e.preventDefault();
-    const pw = document.getElementById('login-password').value;
-    const pwHash = await hashPassword(pw);
-    if (pwHash === ADMIN_PASSWORD_HASH) {
-      sessionStorage.setItem('sc_admin_auth', 'true');
+  // Check session via Firebase Auth listener
+  onAuthStateChanged(auth, (user) => {
+    if (user) {
       loginScreen.style.display = 'none';
       dashboard.style.display = 'block';
       loadAllData();
     } else {
+      loginScreen.style.display = 'block';
+      dashboard.style.display = 'none';
+    }
+  });
+
+  loginForm.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const email = document.getElementById('login-email').value.trim();
+    const pw = document.getElementById('login-password').value;
+    
+    try {
+      await signInWithEmailAndPassword(auth, email, pw);
+      // onAuthStateChanged will handle the UI update
+    } catch (error) {
+      console.error('Login error:', error);
       loginError.style.display = 'block';
+      loginError.textContent = 'Incorrect email or password. Please try again.';
       setTimeout(() => { loginError.style.display = 'none'; }, 3000);
     }
   });
 
-  document.getElementById('btn-logout').addEventListener('click', () => {
-    sessionStorage.removeItem('sc_admin_auth');
-    location.reload();
+  document.getElementById('btn-logout').addEventListener('click', async () => {
+    try {
+      await signOut(auth);
+      location.reload();
+    } catch (error) {
+      console.error('Logout error:', error);
+    }
   });
 }
 
