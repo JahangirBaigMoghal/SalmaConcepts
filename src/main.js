@@ -13,11 +13,28 @@ import { Store } from './data/store.js';
 import { seedData } from './data/seed.js';
 import { getWhatsAppLink, getWhatsAppGeneralLink, WHATSAPP_ICON_SVG } from './utils/whatsapp.js';
 
-// Initialize seed data on first load
-seedData();
+// ── Local cache for real-time data ──
+let cachedProducts = [];
+let cachedCategories = [];
 
-// ── DOM Ready ──
-document.addEventListener('DOMContentLoaded', () => {
+// Initialize seed data on first load, then boot the app
+(async () => {
+  await seedData();
+
+  // Pre-fetch data before DOM is ready
+  [cachedProducts, cachedCategories] = await Promise.all([
+    Store.getProducts(),
+    Store.getCategories(),
+  ]);
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', boot);
+  } else {
+    boot();
+  }
+})();
+
+function boot() {
   initNavbar();
   initHero();
   initGallery();
@@ -26,7 +43,18 @@ document.addEventListener('DOMContentLoaded', () => {
   initScrollAnimations();
   initParticles();
   initLightbox();
-});
+
+  // Real-time listeners — update the gallery live when admin changes data
+  Store.onProductsChange(products => {
+    cachedProducts = products;
+    renderProducts();
+  });
+  Store.onCategoriesChange(categories => {
+    cachedCategories = categories;
+    renderCategoryTabs();
+    renderProducts();
+  });
+}
 
 // ═══════════════════════════════════════════
 // NAVBAR
@@ -65,9 +93,8 @@ function initNavbar() {
 // ═══════════════════════════════════════════
 // HERO
 // ═══════════════════════════════════════════
-function initHero() {
-  const hero = document.getElementById('hero');
-  const heroData = Store.getHero();
+async function initHero() {
+  const heroData = await Store.getHero();
 
   // Set tagline & subtitle from store
   const taglineEl = document.getElementById('hero-tagline');
@@ -98,13 +125,18 @@ function initGallery() {
 function renderCategoryTabs() {
   const tabsContainer = document.getElementById('category-tabs');
   // Only show visible categories on the customer site
-  const categories = Store.getCategories().filter(c => !c.hidden);
+  const categories = cachedCategories.filter(c => !c.hidden);
 
   let html = `<button class="category-tab active" data-category="all">All</button>`;
   categories.forEach(cat => {
-    html += `<button class="category-tab" data-category="${cat.id}">${cat.name}</button>`;
+    html += `<button class="category-tab${activeCategory === cat.id ? ' active' : ''}" data-category="${cat.id}">${cat.name}</button>`;
   });
   tabsContainer.innerHTML = html;
+
+  // Remove 'active' from all, then set the correct one
+  tabsContainer.querySelectorAll('.category-tab').forEach(t => t.classList.remove('active'));
+  const activeTab = tabsContainer.querySelector(`[data-category="${activeCategory}"]`);
+  if (activeTab) activeTab.classList.add('active');
 
   // Tab click handlers
   tabsContainer.querySelectorAll('.category-tab').forEach(tab => {
@@ -119,12 +151,13 @@ function renderCategoryTabs() {
 
 function renderProducts() {
   const grid = document.getElementById('product-grid');
-  const allCategories = Store.getCategories();
   // Filter: hide products that are hidden OR belong to a hidden category
-  const hiddenCatIds = allCategories.filter(c => c.hidden).map(c => c.id);
-  const products = Store.getProductsByCategory(activeCategory)
-    .filter(p => !p.hidden && !hiddenCatIds.includes(p.category));
-  const categories = allCategories.filter(c => !c.hidden);
+  const hiddenCatIds = cachedCategories.filter(c => c.hidden).map(c => c.id);
+  let products = cachedProducts.filter(p => !p.hidden && !hiddenCatIds.includes(p.category));
+  if (activeCategory && activeCategory !== 'all') {
+    products = products.filter(p => p.category === activeCategory);
+  }
+  const visibleCategories = cachedCategories.filter(c => !c.hidden);
 
   if (products.length === 0) {
     grid.innerHTML = `
@@ -138,7 +171,7 @@ function renderProducts() {
   }
 
   grid.innerHTML = products.map((product, index) => {
-    const cat = categories.find(c => c.id === product.category);
+    const cat = visibleCategories.find(c => c.id === product.category);
     const catName = cat ? cat.name : product.category;
     const waLink = getWhatsAppLink(product.name, product.price, product.image);
     const staggerClass = `stagger-${(index % 9) + 1}`;
@@ -174,8 +207,8 @@ function renderProducts() {
 // ═══════════════════════════════════════════
 // ABOUT SECTION
 // ═══════════════════════════════════════════
-function initAbout() {
-  const aboutData = Store.getAbout();
+async function initAbout() {
+  const aboutData = await Store.getAbout();
   const titleEl = document.getElementById('about-title');
   const textEl = document.getElementById('about-text');
 

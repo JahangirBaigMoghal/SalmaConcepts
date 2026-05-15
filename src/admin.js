@@ -8,8 +8,6 @@ import './styles/admin.css';
 import { Store } from './data/store.js';
 import { seedData } from './data/seed.js';
 
-seedData();
-
 // SHA-256 hash of the admin password (never store plaintext in source)
 const ADMIN_PASSWORD_HASH = '95cf7f379ff383746438c10273c01ab728bfa7ba3e98026ebcaaacc2caf8aa45';
 
@@ -22,14 +20,24 @@ async function hashPassword(password) {
   return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
 }
 
-document.addEventListener('DOMContentLoaded', () => {
+// ── Boot ──
+(async () => {
+  await seedData();
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', boot);
+  } else {
+    boot();
+  }
+})();
+
+function boot() {
   initAuth();
   initTabs();
   initProductCRUD();
   initCategoryCRUD();
   initContentEditor();
   initDataManagement();
-});
+}
 
 // ═══════════════════════════════════════════
 // AUTH
@@ -68,10 +76,10 @@ function initAuth() {
   });
 }
 
-function loadAllData() {
-  renderProductsTable();
-  renderCategoriesGrid();
-  loadContentForms();
+async function loadAllData() {
+  await renderProductsTable();
+  await renderCategoriesGrid();
+  await loadContentForms();
 }
 
 // ═══════════════════════════════════════════
@@ -95,8 +103,6 @@ function initTabs() {
 let deleteCallback = null;
 
 function initProductCRUD() {
-  const modal = document.getElementById('product-modal');
-  const form = document.getElementById('product-form');
   const imageInput = document.getElementById('product-image');
   const preview = document.getElementById('product-image-preview');
 
@@ -118,7 +124,7 @@ function initProductCRUD() {
   });
 
   // Save
-  document.getElementById('product-modal-save').addEventListener('click', () => {
+  document.getElementById('product-modal-save').addEventListener('click', async () => {
     const editId = document.getElementById('product-edit-id').value;
     const name = document.getElementById('product-name').value.trim();
     const category = document.getElementById('product-category').value;
@@ -130,32 +136,43 @@ function initProductCRUD() {
     }
 
     const imageFile = imageInput.files[0];
+    const saveBtn = document.getElementById('product-modal-save');
 
-    const saveProduct = (imageData) => {
+    try {
+      saveBtn.disabled = true;
+      saveBtn.textContent = 'Saving…';
+
+      let imageUrl = null;
+      if (imageFile) {
+        saveBtn.textContent = 'Uploading image…';
+        imageUrl = await Store.uploadImage(imageFile);
+      }
+
       const productData = { name, category, price };
-      if (imageData) productData.image = imageData;
+      if (imageUrl) productData.image = imageUrl;
 
       if (editId) {
-        Store.updateProduct(editId, productData);
+        await Store.updateProduct(editId, productData);
         showToast('Product updated successfully!', 'success');
       } else {
-        if (!imageData) {
+        if (!imageUrl) {
           showToast('Please select an image for new products.', 'error');
+          saveBtn.disabled = false;
+          saveBtn.textContent = 'Save Product';
           return;
         }
-        Store.addProduct(productData);
+        await Store.addProduct(productData);
         showToast('Product added successfully!', 'success');
       }
-      closeModal('product-modal');
-      renderProductsTable();
-    };
 
-    if (imageFile) {
-      const reader = new FileReader();
-      reader.onload = (ev) => saveProduct(ev.target.result);
-      reader.readAsDataURL(imageFile);
-    } else {
-      saveProduct(null);
+      closeModal('product-modal');
+      await renderProductsTable();
+    } catch (err) {
+      console.error('Save product error:', err);
+      showToast('Failed to save product. Check console for details.', 'error');
+    } finally {
+      saveBtn.disabled = false;
+      saveBtn.textContent = 'Save Product';
     }
   });
 
@@ -165,20 +182,20 @@ function initProductCRUD() {
 
   // Delete modal
   document.getElementById('delete-cancel').addEventListener('click', () => closeModal('delete-modal'));
-  document.getElementById('delete-confirm').addEventListener('click', () => {
-    if (deleteCallback) deleteCallback();
+  document.getElementById('delete-confirm').addEventListener('click', async () => {
+    if (deleteCallback) await deleteCallback();
     closeModal('delete-modal');
   });
 }
 
-function openProductModal(product = null) {
+async function openProductModal(product = null) {
   const modal = document.getElementById('product-modal');
   const title = document.getElementById('product-modal-title');
   const preview = document.getElementById('product-image-preview');
   const catSelect = document.getElementById('product-category');
 
   // Populate categories dropdown
-  const categories = Store.getCategories();
+  const categories = await Store.getCategories();
   catSelect.innerHTML = categories.map(c => `<option value="${c.id}">${c.name}</option>`).join('');
 
   if (product) {
@@ -201,10 +218,10 @@ function openProductModal(product = null) {
   modal.classList.add('active');
 }
 
-function renderProductsTable() {
+async function renderProductsTable() {
   const tbody = document.getElementById('products-tbody');
-  const products = Store.getProducts();
-  const categories = Store.getCategories();
+  const products = await Store.getProducts();
+  const categories = await Store.getCategories();
 
   if (products.length === 0) {
     tbody.innerHTML = `<tr><td colspan="6" style="text-align:center; color:var(--text-muted); padding:2rem;">No products yet. Click "Add Product" to get started.</td></tr>`;
@@ -236,11 +253,12 @@ function renderProductsTable() {
 
   // Visibility toggle buttons
   tbody.querySelectorAll('[data-action="toggle-visibility"]').forEach(btn => {
-    btn.addEventListener('click', () => {
-      const product = Store.getProducts().find(p => p.id === btn.dataset.id);
+    btn.addEventListener('click', async () => {
+      const prods = await Store.getProducts();
+      const product = prods.find(p => p.id === btn.dataset.id);
       if (product) {
-        Store.updateProduct(btn.dataset.id, { hidden: !product.hidden });
-        renderProductsTable();
+        await Store.updateProduct(btn.dataset.id, { hidden: !product.hidden });
+        await renderProductsTable();
         showToast(product.hidden ? 'Product is now visible.' : 'Product hidden from catalogue.', 'success');
       }
     });
@@ -248,8 +266,9 @@ function renderProductsTable() {
 
   // Edit buttons
   tbody.querySelectorAll('.btn-edit').forEach(btn => {
-    btn.addEventListener('click', () => {
-      const product = Store.getProducts().find(p => p.id === btn.dataset.id);
+    btn.addEventListener('click', async () => {
+      const prods = await Store.getProducts();
+      const product = prods.find(p => p.id === btn.dataset.id);
       if (product) openProductModal(product);
     });
   });
@@ -258,9 +277,9 @@ function renderProductsTable() {
   tbody.querySelectorAll('.btn-delete').forEach(btn => {
     btn.addEventListener('click', () => {
       document.getElementById('delete-message').textContent = `Are you sure you want to delete "${btn.dataset.name}"?`;
-      deleteCallback = () => {
-        Store.deleteProduct(btn.dataset.id);
-        renderProductsTable();
+      deleteCallback = async () => {
+        await Store.deleteProduct(btn.dataset.id);
+        await renderProductsTable();
         showToast('Product deleted.', 'success');
       };
       document.getElementById('delete-modal').classList.add('active');
@@ -276,22 +295,27 @@ function initCategoryCRUD() {
     openCategoryModal();
   });
 
-  document.getElementById('category-modal-save').addEventListener('click', () => {
+  document.getElementById('category-modal-save').addEventListener('click', async () => {
     const editId = document.getElementById('category-edit-id').value;
     const name = document.getElementById('category-name').value.trim();
     if (!name) {
       showToast('Please enter a category name.', 'error');
       return;
     }
-    if (editId) {
-      Store.updateCategory(editId, { name });
-      showToast('Category updated!', 'success');
-    } else {
-      Store.addCategory({ name });
-      showToast('Category added!', 'success');
+    try {
+      if (editId) {
+        await Store.updateCategory(editId, { name });
+        showToast('Category updated!', 'success');
+      } else {
+        await Store.addCategory({ name });
+        showToast('Category added!', 'success');
+      }
+      closeModal('category-modal');
+      await renderCategoriesGrid();
+    } catch (err) {
+      console.error('Save category error:', err);
+      showToast('Failed to save category.', 'error');
     }
-    closeModal('category-modal');
-    renderCategoriesGrid();
   });
 
   document.getElementById('category-modal-close').addEventListener('click', () => closeModal('category-modal'));
@@ -312,10 +336,10 @@ function openCategoryModal(category = null) {
   document.getElementById('category-modal').classList.add('active');
 }
 
-function renderCategoriesGrid() {
+async function renderCategoriesGrid() {
   const grid = document.getElementById('categories-grid');
-  const categories = Store.getCategories();
-  const products = Store.getProducts();
+  const categories = await Store.getCategories();
+  const products = await Store.getProducts();
 
   if (categories.length === 0) {
     grid.innerHTML = `<p style="color:var(--text-muted);">No categories yet.</p>`;
@@ -345,31 +369,34 @@ function renderCategoriesGrid() {
 
   // Category visibility toggles
   grid.querySelectorAll('[data-action="toggle-cat-visibility"]').forEach(btn => {
-    btn.addEventListener('click', () => {
-      const cat = Store.getCategories().find(c => c.id === btn.dataset.id);
+    btn.addEventListener('click', async () => {
+      const cats = await Store.getCategories();
+      const cat = cats.find(c => c.id === btn.dataset.id);
       if (cat) {
-        Store.updateCategory(btn.dataset.id, { hidden: !cat.hidden });
-        renderCategoriesGrid();
+        await Store.updateCategory(btn.dataset.id, { hidden: !cat.hidden });
+        await renderCategoriesGrid();
         showToast(cat.hidden ? 'Category is now visible.' : 'Category hidden from catalogue.', 'success');
       }
     });
   });
 
   grid.querySelectorAll('.btn-edit').forEach(btn => {
-    btn.addEventListener('click', () => {
-      const cat = Store.getCategories().find(c => c.id === btn.dataset.id);
+    btn.addEventListener('click', async () => {
+      const cats = await Store.getCategories();
+      const cat = cats.find(c => c.id === btn.dataset.id);
       if (cat) openCategoryModal(cat);
     });
   });
 
   grid.querySelectorAll('.btn-delete').forEach(btn => {
-    btn.addEventListener('click', () => {
-      const count = products.filter(p => p.category === btn.dataset.id).length;
+    btn.addEventListener('click', async () => {
+      const prods = await Store.getProducts();
+      const count = prods.filter(p => p.category === btn.dataset.id).length;
       document.getElementById('delete-message').textContent = `Delete "${btn.dataset.name}"? This will also remove ${count} product(s) in this category.`;
-      deleteCallback = () => {
-        Store.deleteCategory(btn.dataset.id);
-        renderCategoriesGrid();
-        renderProductsTable();
+      deleteCallback = async () => {
+        await Store.deleteCategory(btn.dataset.id);
+        await renderCategoriesGrid();
+        await renderProductsTable();
         showToast('Category deleted.', 'success');
       };
       document.getElementById('delete-modal').classList.add('active');
@@ -381,29 +408,39 @@ function renderCategoriesGrid() {
 // CONTENT EDITOR
 // ═══════════════════════════════════════════
 function initContentEditor() {
-  document.getElementById('btn-save-hero').addEventListener('click', () => {
-    Store.setHero({
-      tagline: document.getElementById('hero-tagline-input').value,
-      subtitle: document.getElementById('hero-subtitle-input').value,
-    });
-    showToast('Hero content saved!', 'success');
+  document.getElementById('btn-save-hero').addEventListener('click', async () => {
+    try {
+      await Store.setHero({
+        tagline: document.getElementById('hero-tagline-input').value,
+        subtitle: document.getElementById('hero-subtitle-input').value,
+      });
+      showToast('Hero content saved!', 'success');
+    } catch (err) {
+      console.error('Save hero error:', err);
+      showToast('Failed to save hero content.', 'error');
+    }
   });
 
-  document.getElementById('btn-save-about').addEventListener('click', () => {
-    Store.setAbout({
-      title: document.getElementById('about-title-input').value,
-      text: document.getElementById('about-text-input').value,
-    });
-    showToast('About content saved!', 'success');
+  document.getElementById('btn-save-about').addEventListener('click', async () => {
+    try {
+      await Store.setAbout({
+        title: document.getElementById('about-title-input').value,
+        text: document.getElementById('about-text-input').value,
+      });
+      showToast('About content saved!', 'success');
+    } catch (err) {
+      console.error('Save about error:', err);
+      showToast('Failed to save about content.', 'error');
+    }
   });
 }
 
-function loadContentForms() {
-  const hero = Store.getHero();
+async function loadContentForms() {
+  const hero = await Store.getHero();
   document.getElementById('hero-tagline-input').value = hero.tagline || '';
   document.getElementById('hero-subtitle-input').value = hero.subtitle || '';
 
-  const about = Store.getAbout();
+  const about = await Store.getAbout();
   document.getElementById('about-title-input').value = about.title || '';
   document.getElementById('about-text-input').value = about.text || '';
 }
@@ -412,24 +449,29 @@ function loadContentForms() {
 // DATA MANAGEMENT (Export/Import)
 // ═══════════════════════════════════════════
 function initDataManagement() {
-  document.getElementById('btn-export').addEventListener('click', () => {
-    const data = Store.exportData();
-    const blob = new Blob([data], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `salma-concepts-backup-${new Date().toISOString().slice(0,10)}.json`;
-    a.click();
-    URL.revokeObjectURL(url);
-    showToast('Data exported successfully!', 'success');
+  document.getElementById('btn-export').addEventListener('click', async () => {
+    try {
+      const data = await Store.exportData();
+      const blob = new Blob([data], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `salma-concepts-backup-${new Date().toISOString().slice(0,10)}.json`;
+      a.click();
+      URL.revokeObjectURL(url);
+      showToast('Data exported successfully!', 'success');
+    } catch (err) {
+      console.error('Export error:', err);
+      showToast('Export failed.', 'error');
+    }
   });
 
   document.getElementById('btn-import').addEventListener('change', (e) => {
     const file = e.target.files[0];
     if (!file) return;
     const reader = new FileReader();
-    reader.onload = (ev) => {
-      const success = Store.importData(ev.target.result);
+    reader.onload = async (ev) => {
+      const success = await Store.importData(ev.target.result);
       if (success) {
         showToast('Data imported successfully! Reloading...', 'success');
         setTimeout(() => location.reload(), 1500);
