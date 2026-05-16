@@ -62,7 +62,10 @@
       <!-- ── PRODUCTS TAB ── -->
       <div class="admin-tab-content active" id="tab-products">
         <div class="admin-section-header">
-          <h3>Products</h3>
+          <div style="display: flex; align-items: center; gap: 1rem; flex-wrap: wrap;">
+            <h3>Products</h3>
+            <input type="text" id="search-products" placeholder="Search products..." style="padding: 0.4rem 0.8rem; border-radius: 4px; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,215,0,0.2); color: var(--text-light);" />
+          </div>
           <button class="btn btn-gold" id="btn-add-product">+ Add Product</button>
         </div>
         <div class="admin-table-wrapper">
@@ -70,9 +73,9 @@
             <thead>
               <tr>
                 <th>Image</th>
-                <th>Name</th>
-                <th>Category</th>
-                <th>Price</th>
+                <th class="sortable" data-sort="name" style="cursor: pointer;">Name ↕</th>
+                <th class="sortable" data-sort="category" style="cursor: pointer;">Category ↕</th>
+                <th class="sortable" data-sort="price" style="cursor: pointer;">Price ↕</th>
                 <th>Actions</th>
               </tr>
             </thead>
@@ -84,7 +87,10 @@
       <!-- ── CATEGORIES TAB ── -->
       <div class="admin-tab-content" id="tab-categories">
         <div class="admin-section-header">
-          <h3>Categories</h3>
+          <div style="display: flex; align-items: center; gap: 1rem; flex-wrap: wrap;">
+            <h3>Categories</h3>
+            <input type="text" id="search-categories" placeholder="Search categories..." style="padding: 0.4rem 0.8rem; border-radius: 4px; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,215,0,0.2); color: var(--text-light);" />
+          </div>
           <button class="btn btn-gold" id="btn-add-category">+ Add Category</button>
         </div>
         <div class="category-cards" id="categories-grid"></div>

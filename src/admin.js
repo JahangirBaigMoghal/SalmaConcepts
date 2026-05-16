@@ -101,6 +101,9 @@ function initTabs() {
 // PRODUCT CRUD
 // ═══════════════════════════════════════════
 let deleteCallback = null;
+let productsFilterText = '';
+let productsSortField = null; // 'name', 'category', 'price'
+let productsSortDir = 'asc'; // 'asc' or 'desc'
 
 function initProductCRUD() {
   const imageInputs = [
@@ -116,6 +119,36 @@ function initProductCRUD() {
 
   document.getElementById('btn-add-product').addEventListener('click', () => {
     openProductModal();
+  });
+
+  // Search
+  const searchInput = document.getElementById('search-products');
+  if (searchInput) {
+    searchInput.addEventListener('input', (e) => {
+      productsFilterText = e.target.value.toLowerCase();
+      renderProductsTable();
+    });
+  }
+
+  // Sort
+  document.querySelectorAll('#products-table th.sortable').forEach(th => {
+    th.addEventListener('click', () => {
+      const field = th.dataset.sort;
+      if (productsSortField === field) {
+        productsSortDir = productsSortDir === 'asc' ? 'desc' : 'asc';
+      } else {
+        productsSortField = field;
+        productsSortDir = 'asc';
+      }
+      
+      // Update arrows
+      document.querySelectorAll('#products-table th.sortable').forEach(header => {
+        header.textContent = header.textContent.replace(/ [↑↓↕]/, '') + ' ↕';
+      });
+      th.textContent = th.textContent.replace(/ [↑↓↕]/, '') + (productsSortDir === 'asc' ? ' ↑' : ' ↓');
+      
+      renderProductsTable();
+    });
   });
 
   // Image previews
@@ -269,11 +302,40 @@ async function openProductModal(product = null) {
 
 async function renderProductsTable() {
   const tbody = document.getElementById('products-tbody');
-  const products = await Store.getProducts();
+  let products = await Store.getProducts();
   const categories = await Store.getCategories();
 
+  // Apply Filter
+  if (productsFilterText) {
+    products = products.filter(p => {
+      const catName = categories.find(c => c.id === p.category)?.name || p.category;
+      return p.name.toLowerCase().includes(productsFilterText) || catName.toLowerCase().includes(productsFilterText);
+    });
+  }
+
+  // Apply Sort
+  if (productsSortField) {
+    products.sort((a, b) => {
+      let valA, valB;
+      if (productsSortField === 'name') {
+        valA = a.name.toLowerCase();
+        valB = b.name.toLowerCase();
+      } else if (productsSortField === 'category') {
+        valA = (categories.find(c => c.id === a.category)?.name || a.category).toLowerCase();
+        valB = (categories.find(c => c.id === b.category)?.name || b.category).toLowerCase();
+      } else if (productsSortField === 'price') {
+        valA = parseFloat(a.price) || 0;
+        valB = parseFloat(b.price) || 0;
+      }
+      
+      if (valA < valB) return productsSortDir === 'asc' ? -1 : 1;
+      if (valA > valB) return productsSortDir === 'asc' ? 1 : -1;
+      return 0;
+    });
+  }
+
   if (products.length === 0) {
-    tbody.innerHTML = `<tr><td colspan="6" style="text-align:center; color:var(--text-muted); padding:2rem;">No products yet. Click "Add Product" to get started.</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="6" style="text-align:center; color:var(--text-muted); padding:2rem;">No products found.</td></tr>`;
     return;
   }
 
@@ -342,10 +404,20 @@ async function renderProductsTable() {
 // ═══════════════════════════════════════════
 // CATEGORY CRUD
 // ═══════════════════════════════════════════
+let categoriesFilterText = '';
+
 function initCategoryCRUD() {
   document.getElementById('btn-add-category').addEventListener('click', () => {
     openCategoryModal();
   });
+
+  const searchInput = document.getElementById('search-categories');
+  if (searchInput) {
+    searchInput.addEventListener('input', (e) => {
+      categoriesFilterText = e.target.value.toLowerCase();
+      renderCategoriesGrid();
+    });
+  }
 
   document.getElementById('category-modal-save').addEventListener('click', async () => {
     const editId = document.getElementById('category-edit-id').value;
@@ -390,11 +462,15 @@ function openCategoryModal(category = null) {
 
 async function renderCategoriesGrid() {
   const grid = document.getElementById('categories-grid');
-  const categories = await Store.getCategories();
+  let categories = await Store.getCategories();
   const products = await Store.getProducts();
 
+  if (categoriesFilterText) {
+    categories = categories.filter(c => c.name.toLowerCase().includes(categoriesFilterText));
+  }
+
   if (categories.length === 0) {
-    grid.innerHTML = `<p style="color:var(--text-muted);">No categories yet.</p>`;
+    grid.innerHTML = `<p style="color:var(--text-muted);">No categories found.</p>`;
     return;
   }
 
