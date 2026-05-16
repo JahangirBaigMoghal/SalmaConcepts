@@ -127,6 +127,11 @@ function renderCategoryTabs() {
   // Only show visible categories on the customer site
   const categories = cachedCategories.filter(c => !c.hidden);
 
+  // If activeCategory is no longer visible, reset to 'all'
+  if (activeCategory !== 'all' && !categories.some(c => c.id === activeCategory)) {
+    activeCategory = 'all';
+  }
+
   let html = `<button class="category-tab active" data-category="all">All</button>`;
   categories.forEach(cat => {
     html += `<button class="category-tab${activeCategory === cat.id ? ' active' : ''}" data-category="${cat.id}">${cat.name}</button>`;
@@ -151,13 +156,16 @@ function renderCategoryTabs() {
 
 function renderProducts() {
   const grid = document.getElementById('product-grid');
-  // Filter: hide products that are hidden OR belong to a hidden category
-  const hiddenCatIds = cachedCategories.filter(c => c.hidden).map(c => c.id);
-  let products = cachedProducts.filter(p => !p.hidden && !hiddenCatIds.includes(p.category));
+  
+  // Filter: only show products that are not hidden AND belong to a visible category
+  const visibleCategories = cachedCategories.filter(c => !c.hidden);
+  const visibleCatIds = visibleCategories.map(c => c.id);
+  
+  let products = cachedProducts.filter(p => !p.hidden && visibleCatIds.includes(p.category));
+  
   if (activeCategory && activeCategory !== 'all') {
     products = products.filter(p => p.category === activeCategory);
   }
-  const visibleCategories = cachedCategories.filter(c => !c.hidden);
 
   if (products.length === 0) {
     grid.innerHTML = `
