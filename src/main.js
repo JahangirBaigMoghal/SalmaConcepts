@@ -176,19 +176,35 @@ function renderProducts() {
     const waLink = getWhatsAppLink(product.name, product.price, product.image);
     const staggerClass = `stagger-${(index % 9) + 1}`;
 
+    const isSoldOut = product.soldOut;
+    const primaryImage = product.images && product.images.length > 0 ? product.images[0] : product.image;
+    const soldOutBadge = isSoldOut ? `<div class="product-sold-out-badge">Sold Out</div>` : '';
+    
+    let waButtonHtml = '';
+    if (isSoldOut) {
+      waButtonHtml = `
+          <button class="btn btn-whatsapp btn-disabled" disabled>
+            Sold Out
+          </button>`;
+    } else {
+      waButtonHtml = `
+          <a href="${waLink}" target="_blank" rel="noopener noreferrer" class="btn btn-whatsapp" id="wa-btn-${product.id}">
+            ${WHATSAPP_ICON_SVG}
+            Order via WhatsApp
+          </a>`;
+    }
+
     return `
       <div class="product-card reveal ${staggerClass}" data-id="${product.id}">
-        <div class="product-card-image" data-img="${product.image}" data-name="${product.name}">
-          <img src="${product.image}" alt="${product.name}" loading="lazy" />
+        <div class="product-card-image" data-product-id="${product.id}">
+          ${soldOutBadge}
+          <img src="${primaryImage}" alt="${product.name}" loading="lazy" />
         </div>
         <div class="product-card-body">
           <div class="product-card-category">${catName}</div>
           <h3 class="product-card-name">${product.name}</h3>
           <div class="product-card-price">£${product.price}</div>
-          <a href="${waLink}" target="_blank" rel="noopener noreferrer" class="btn btn-whatsapp" id="wa-btn-${product.id}">
-            ${WHATSAPP_ICON_SVG}
-            Order via WhatsApp
-          </a>
+          ${waButtonHtml}
         </div>
       </div>`;
   }).join('');
@@ -196,7 +212,7 @@ function renderProducts() {
   // Attach lightbox click handlers to product images
   grid.querySelectorAll('.product-card-image').forEach(imgWrapper => {
     imgWrapper.addEventListener('click', () => {
-      openLightbox(imgWrapper.dataset.img, imgWrapper.dataset.name);
+      openLightbox(imgWrapper.dataset.productId);
     });
   });
 
@@ -271,9 +287,14 @@ function initParticles() {
 // ═══════════════════════════════════════════
 // IMAGE LIGHTBOX
 // ═══════════════════════════════════════════
+let currentLightboxImages = [];
+let currentLightboxIndex = 0;
+
 function initLightbox() {
   const overlay = document.getElementById('lightbox-overlay');
   const closeBtn = document.getElementById('lightbox-close');
+  const prevBtn = document.getElementById('lightbox-prev');
+  const nextBtn = document.getElementById('lightbox-next');
   if (!overlay || !closeBtn) return;
 
   // Close on X button
@@ -284,23 +305,65 @@ function initLightbox() {
     if (e.target === overlay) closeLightbox();
   });
 
-  // Close on Escape key
+  // Close on Escape key or navigate with arrows
   document.addEventListener('keydown', (e) => {
-    if (e.key === 'Escape' && overlay.classList.contains('active')) {
-      closeLightbox();
+    if (overlay.classList.contains('active')) {
+      if (e.key === 'Escape') closeLightbox();
+      if (e.key === 'ArrowLeft') showLightboxImage(currentLightboxIndex - 1);
+      if (e.key === 'ArrowRight') showLightboxImage(currentLightboxIndex + 1);
     }
   });
+
+  if (prevBtn) {
+    prevBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      showLightboxImage(currentLightboxIndex - 1);
+    });
+  }
+  if (nextBtn) {
+    nextBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      showLightboxImage(currentLightboxIndex + 1);
+    });
+  }
 }
 
-function openLightbox(imageSrc, caption) {
-  const overlay = document.getElementById('lightbox-overlay');
-  const img = document.getElementById('lightbox-img');
-  const captionEl = document.getElementById('lightbox-caption');
+function openLightbox(productId) {
+  const product = cachedProducts.find(p => p.id === productId);
+  if (!product) return;
 
-  img.src = imageSrc;
-  captionEl.textContent = caption || '';
+  currentLightboxImages = product.images && product.images.length > 0 ? product.images : [product.image];
+  currentLightboxIndex = 0;
+
+  const captionEl = document.getElementById('lightbox-caption');
+  captionEl.textContent = product.name || '';
+
+  showLightboxImage(0);
+
+  const overlay = document.getElementById('lightbox-overlay');
   overlay.classList.add('active');
   document.body.style.overflow = 'hidden';
+}
+
+function showLightboxImage(index) {
+  if (currentLightboxImages.length === 0) return;
+  if (index < 0) index = currentLightboxImages.length - 1;
+  if (index >= currentLightboxImages.length) index = 0;
+  
+  currentLightboxIndex = index;
+  const img = document.getElementById('lightbox-img');
+  img.src = currentLightboxImages[currentLightboxIndex];
+
+  const prevBtn = document.getElementById('lightbox-prev');
+  const nextBtn = document.getElementById('lightbox-next');
+  
+  if (currentLightboxImages.length > 1) {
+    if (prevBtn) prevBtn.style.display = 'block';
+    if (nextBtn) nextBtn.style.display = 'block';
+  } else {
+    if (prevBtn) prevBtn.style.display = 'none';
+    if (nextBtn) nextBtn.style.display = 'none';
+  }
 }
 
 function closeLightbox() {

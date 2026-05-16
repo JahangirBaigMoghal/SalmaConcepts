@@ -147,10 +147,30 @@
             <label for="product-price">Price (£)</label>
             <input type="number" id="product-price" step="0.01" min="0" placeholder="29.99" required />
           </div>
+          <div class="form-group checkbox-group" style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 1rem;">
+            <input type="checkbox" id="product-sold-out" style="width: auto; margin: 0;" />
+            <label for="product-sold-out" style="margin: 0; cursor: pointer;">Mark as Sold Out</label>
+          </div>
           <div class="form-group">
-            <label for="product-image">Product Image</label>
-            <input type="file" id="product-image" accept="image/*" style="color:var(--text-muted);" />
-            <img class="image-preview" id="product-image-preview" alt="Preview" />
+            <label>Product Images (Up to 3)</label>
+            <p style="font-size: 0.75rem; color: var(--text-muted); margin-bottom: 0.5rem;">The first image will be the primary one displayed.</p>
+            <div class="image-upload-row" style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem;">
+              <div class="image-upload-slot">
+                <label for="product-image-1" style="font-size: 0.8rem;">Primary Image *</label>
+                <input type="file" id="product-image-1" accept="image/*" style="color:var(--text-muted); font-size: 0.7rem; padding: 0.2rem;" />
+                <img class="image-preview" id="product-image-preview-1" alt="Preview 1" />
+              </div>
+              <div class="image-upload-slot">
+                <label for="product-image-2" style="font-size: 0.8rem;">Image 2</label>
+                <input type="file" id="product-image-2" accept="image/*" style="color:var(--text-muted); font-size: 0.7rem; padding: 0.2rem;" />
+                <img class="image-preview" id="product-image-preview-2" alt="Preview 2" />
+              </div>
+              <div class="image-upload-slot">
+                <label for="product-image-3" style="font-size: 0.8rem;">Image 3</label>
+                <input type="file" id="product-image-3" accept="image/*" style="color:var(--text-muted); font-size: 0.7rem; padding: 0.2rem;" />
+                <img class="image-preview" id="product-image-preview-3" alt="Preview 3" />
+              </div>
+            </div>
           </div>
         </form>
       </div>

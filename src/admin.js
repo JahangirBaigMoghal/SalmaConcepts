@@ -103,24 +103,37 @@ function initTabs() {
 let deleteCallback = null;
 
 function initProductCRUD() {
-  const imageInput = document.getElementById('product-image');
-  const preview = document.getElementById('product-image-preview');
+  const imageInputs = [
+    document.getElementById('product-image-1'),
+    document.getElementById('product-image-2'),
+    document.getElementById('product-image-3')
+  ];
+  const previews = [
+    document.getElementById('product-image-preview-1'),
+    document.getElementById('product-image-preview-2'),
+    document.getElementById('product-image-preview-3')
+  ];
 
   document.getElementById('btn-add-product').addEventListener('click', () => {
     openProductModal();
   });
 
-  // Image preview
-  imageInput.addEventListener('change', (e) => {
-    const file = e.target.files[0];
-    if (file) {
-      const reader = new FileReader();
-      reader.onload = (ev) => {
-        preview.src = ev.target.result;
-        preview.classList.add('visible');
-      };
-      reader.readAsDataURL(file);
-    }
+  // Image previews
+  imageInputs.forEach((input, index) => {
+    input.addEventListener('change', (e) => {
+      const file = e.target.files[0];
+      if (file) {
+        const reader = new FileReader();
+        reader.onload = (ev) => {
+          previews[index].src = ev.target.result;
+          previews[index].classList.add('visible');
+        };
+        reader.readAsDataURL(file);
+      } else {
+        previews[index].src = '';
+        previews[index].classList.remove('visible');
+      }
+    });
   });
 
   // Save
@@ -129,34 +142,56 @@ function initProductCRUD() {
     const name = document.getElementById('product-name').value.trim();
     const category = document.getElementById('product-category').value;
     const price = document.getElementById('product-price').value;
+    const soldOut = document.getElementById('product-sold-out').checked;
 
     if (!name || !category || !price) {
       showToast('Please fill in all required fields.', 'error');
       return;
     }
 
-    const imageFile = imageInput.files[0];
     const saveBtn = document.getElementById('product-modal-save');
 
     try {
       saveBtn.disabled = true;
       saveBtn.textContent = 'Saving…';
 
-      let imageUrl = null;
-      if (imageFile) {
-        saveBtn.textContent = 'Uploading image…';
-        imageUrl = await Store.uploadImage(imageFile);
+      // We need to figure out existing images if editing
+      let existingImages = [];
+      if (editId) {
+        const prods = await Store.getProducts();
+        const existingProd = prods.find(p => p.id === editId);
+        if (existingProd) {
+          existingImages = existingProd.images || (existingProd.image ? [existingProd.image] : []);
+        }
       }
 
-      const productData = { name, category, price };
-      if (imageUrl) productData.image = imageUrl;
+      saveBtn.textContent = 'Uploading images…';
+      
+      const newImages = [...existingImages];
+      // Upload up to 3 images
+      for (let i = 0; i < 3; i++) {
+        const file = imageInputs[i].files[0];
+        if (file) {
+          const url = await Store.uploadImage(file);
+          newImages[i] = url; // replace existing at index, or append
+        }
+      }
+
+      // Cleanup undefined/null values in newImages array in case of sparse array
+      const finalImages = newImages.filter(url => url);
+
+      const productData = { name, category, price, soldOut };
+      if (finalImages.length > 0) {
+        productData.images = finalImages;
+        productData.image = finalImages[0]; // For backwards compatibility
+      }
 
       if (editId) {
         await Store.updateProduct(editId, productData);
         showToast('Product updated successfully!', 'success');
       } else {
-        if (!imageUrl) {
-          showToast('Please select an image for new products.', 'error');
+        if (finalImages.length === 0) {
+          showToast('Please select a primary image for new products.', 'error');
           saveBtn.disabled = false;
           saveBtn.textContent = 'Save Product';
           return;
@@ -191,8 +226,13 @@ function initProductCRUD() {
 async function openProductModal(product = null) {
   const modal = document.getElementById('product-modal');
   const title = document.getElementById('product-modal-title');
-  const preview = document.getElementById('product-image-preview');
   const catSelect = document.getElementById('product-category');
+  
+  const previews = [
+    document.getElementById('product-image-preview-1'),
+    document.getElementById('product-image-preview-2'),
+    document.getElementById('product-image-preview-3')
+  ];
 
   // Populate categories dropdown
   const categories = await Store.getCategories();
@@ -204,15 +244,24 @@ async function openProductModal(product = null) {
     document.getElementById('product-name').value = product.name;
     document.getElementById('product-category').value = product.category;
     document.getElementById('product-price').value = product.price;
-    if (product.image) {
-      preview.src = product.image;
-      preview.classList.add('visible');
-    }
+    document.getElementById('product-sold-out').checked = !!product.soldOut;
+    
+    const productImages = product.images || (product.image ? [product.image] : []);
+    previews.forEach((p, i) => {
+      if (productImages[i]) {
+        p.src = productImages[i];
+        p.classList.add('visible');
+      } else {
+        p.src = '';
+        p.classList.remove('visible');
+      }
+    });
   } else {
     title.textContent = 'Add Product';
     document.getElementById('product-edit-id').value = '';
     document.getElementById('product-form').reset();
-    preview.classList.remove('visible');
+    document.getElementById('product-sold-out').checked = false;
+    previews.forEach(p => p.classList.remove('visible'));
   }
 
   modal.classList.add('active');
@@ -231,14 +280,17 @@ async function renderProductsTable() {
   tbody.innerHTML = products.map(p => {
     const cat = categories.find(c => c.id === p.category);
     const isHidden = p.hidden;
+    const isSoldOut = p.soldOut;
     const rowStyle = isHidden ? 'opacity: 0.45;' : '';
     const hiddenBadge = isHidden ? ' <span style="color:#ff9800; font-size:0.65rem; text-transform:uppercase; letter-spacing:0.08em; font-weight:600;">(Hidden)</span>' : '';
+    const soldOutBadge = isSoldOut ? ' <span style="color:#e74c3c; font-size:0.65rem; text-transform:uppercase; letter-spacing:0.08em; font-weight:600;">(Sold Out)</span>' : '';
     const toggleLabel = isHidden ? 'Show' : 'Hide';
     const toggleClass = isHidden ? 'btn-show' : 'btn-hide';
+    const primaryImage = p.images && p.images.length > 0 ? p.images[0] : p.image;
     return `
       <tr style="${rowStyle}">
-        <td><img src="${p.image}" alt="${p.name}" class="thumb" /></td>
-        <td>${p.name}${hiddenBadge}</td>
+        <td><img src="${primaryImage}" alt="${p.name}" class="thumb" /></td>
+        <td>${p.name}${hiddenBadge}${soldOutBadge}</td>
         <td>${cat ? cat.name : p.category}</td>
         <td>\u00a3${p.price}</td>
         <td>
