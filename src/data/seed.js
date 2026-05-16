@@ -75,35 +75,53 @@ export async function seedData() {
     
     if (localProductsData) {
       console.log('Salma Concepts: Migrating local data to Firestore...');
-      const localProducts = JSON.parse(localProductsData);
-      const localCategoriesData = localStorage.getItem('sc_categories');
-      const localCategories = localCategoriesData ? JSON.parse(localCategoriesData) : DEFAULT_CATEGORIES;
       
-      for (const cat of localCategories) {
-        await setDoc(doc(db, 'categories', cat.id), { name: cat.name, hidden: cat.hidden || false });
-      }
-
-      for (const prod of localProducts) {
-        const { id, ...data } = prod;
-        data.createdAt = data.createdAt || new Date().toISOString();
-        data.hidden = data.hidden || false;
-        await setDoc(doc(db, 'products', id), data);
-      }
-
-      const localHeroData = localStorage.getItem('sc_hero');
-      if (localHeroData) await Store.setHero(JSON.parse(localHeroData));
-      
-      const localAboutData = localStorage.getItem('sc_about');
-      if (localAboutData) await Store.setAbout(JSON.parse(localAboutData));
-
-      // Clean up localStorage so we don't migrate again
+      // Clean up localStorage FIRST so we never get stuck in an infinite migration loop
       localStorage.removeItem('sc_products');
       localStorage.removeItem('sc_categories');
       localStorage.removeItem('sc_hero');
       localStorage.removeItem('sc_about');
       localStorage.removeItem('sc_initialized');
 
-      await Store.markInitialized();
+      let localProducts = [];
+      let localCategories = DEFAULT_CATEGORIES;
+      
+      try { localProducts = JSON.parse(localProductsData); } catch (e) {}
+      try { 
+        const localCategoriesData = localStorage.getItem('sc_categories');
+        if (localCategoriesData) localCategories = JSON.parse(localCategoriesData); 
+      } catch (e) {}
+      
+      for (const cat of localCategories) {
+        if (cat && cat.id) {
+          try {
+            await setDoc(doc(db, 'categories', cat.id), { name: cat.name, hidden: cat.hidden || false });
+          } catch(e) { console.warn('Failed to migrate category:', cat.id); }
+        }
+      }
+
+      for (const prod of localProducts) {
+        if (prod && prod.id) {
+          try {
+            const { id, ...data } = prod;
+            data.createdAt = data.createdAt || new Date().toISOString();
+            data.hidden = data.hidden || false;
+            await setDoc(doc(db, 'products', id), data);
+          } catch(e) { console.warn('Failed to migrate product:', prod.id); }
+        }
+      }
+
+      try {
+        const localHeroData = localStorage.getItem('sc_hero');
+        if (localHeroData && localHeroData !== "undefined") await Store.setHero(JSON.parse(localHeroData));
+      } catch(e) {}
+      
+      try {
+        const localAboutData = localStorage.getItem('sc_about');
+        if (localAboutData && localAboutData !== "undefined") await Store.setAbout(JSON.parse(localAboutData));
+      } catch(e) {}
+
+      try { await Store.markInitialized(); } catch(e) {}
       console.log('Salma Concepts: Migration complete.');
       return;
     }
